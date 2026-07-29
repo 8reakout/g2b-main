@@ -79,18 +79,17 @@ def build_html(notices: list[Notice], new_ids: set[str], config: dict[str, Any])
             f"""
             <tr>
               <td class="num">{idx}</td>
-              <td><div class="title">{title}</div></td>              
-              <td>{_e(n.demand_org or n.notice_org or '-')}</td>
-              <td>{_e(n.contract_method or '-')}</td>
-              <td>{_e(notice_date)}</td>
-              <td>{_e(n.amount or '-')}</td>
-              <td>{_link(n.url)}</td>
+              <td><div class="title">{title}</div></td>
+              <td class="org">{_e(n.demand_org or n.notice_org or '-')}</td>
+              <td class="contract">{_e(n.contract_method or '-')}</td>
+              <td class="date">{_e(notice_date)}</td>
+              <td class="amount">{_e(n.amount or '-')}</td>              
             </tr>
             """
         )
 
     if not rows:
-        rows.append('<tr><td colspan="9" class="empty">조건에 맞는 나라장터 입찰공고가 없습니다.</td></tr>')
+        rows.append('<tr><td colspan="7" class="empty">조건에 맞는 나라장터 입찰공고가 없습니다.</td></tr>')
 
     return f"""
 <!doctype html>
@@ -102,11 +101,56 @@ def build_html(notices: list[Notice], new_ids: set[str], config: dict[str, Any])
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; color:#222; }}
   .wrap {{ max-width: 1200px; margin: 0 auto; }}
   .summary {{ background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:16px; margin-bottom:16px; }}
-  table {{ border-collapse: collapse; width: 100%; font-size: 13px; }}
-  th, td {{ border:1px solid #d0d7de; padding:8px; vertical-align: top; }}
-  th {{ background:#f6f8fa; }}
-  .num {{ text-align:center; width:45px; }}
-  .title {{ font-weight:600; line-height:1.4; }}
+  table {{
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    table-layout: fixed;
+  }}
+  th, td {{
+    border:1px solid #d0d7de;
+    padding:8px;
+    vertical-align: middle;
+    word-break: keep-all;
+  }}
+  th {{
+    background:#f6f8fa;
+    white-space: nowrap;
+  }}
+  .num {{
+    text-align:center;
+    width:60px;
+    white-space: nowrap;
+  }}
+  .title {{
+    font-weight:600;
+    line-height:1.4;
+    word-break: keep-all;
+  }}
+  .org {{
+    width:180px;
+    word-break: keep-all;
+  }}
+  .contract {{
+    width:90px;
+    text-align:center;
+    white-space: nowrap;
+  }}
+  .date {{
+    width:110px;
+    text-align:center;
+    white-space: nowrap;
+  }}
+  .amount {{
+    width:120px;
+    text-align:right;
+    white-space: nowrap;
+  }}
+  .link {{
+    width:70px;
+    text-align:center;
+    white-space: nowrap;
+  }}
   .sub {{ color:#666; font-size:12px; margin-top:4px; }}
   .badge {{ display:inline-block; padding:3px 7px; border-radius:999px; font-size:11px; font-weight:700; }}
   .new {{ background:#dbeafe; color:#1d4ed8; }}
@@ -130,8 +174,7 @@ def build_html(notices: list[Notice], new_ids: set[str], config: dict[str, Any])
         <th>수요/공고기관</th>
         <th>계약방법</th>
         <th>공고일자</th>
-        <th>금액</th>
-        <th>링크</th>
+        <th>금액</th>        
       </tr>
     </thead>
     <tbody>
