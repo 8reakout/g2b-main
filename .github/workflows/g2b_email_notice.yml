@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # 매주 월요일 11:07 KST = 02:07 UTC
-    - cron: "7 2 * * 1"
+    - cron: "11 5 * * 3"
 
 permissions:
   contents: write
