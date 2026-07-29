@@ -1,0 +1,8 @@
+.env
+config.yaml
+__pycache__/
+*.pyc
+.venv/
+seen_bid_ids.json
+latest_bids.json
+g2b_bid_latest.html

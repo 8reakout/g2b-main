@@ -1,0 +1,58 @@
+g2b:
+  # 조달청_나라장터 입찰공고정보서비스
+  # 실제 인증키는 .env 또는 GitHub Secrets의 G2B_SERVICE_KEY 사용
+  api_base_url: "https://apis.data.go.kr/1230000/ad/BidPublicInfoService"
+  service_key: ""
+
+  # 원하는 키워드를 여기에 입력합니다.
+  # 예: LMS, 교육관리시스템, 이러닝, 유지관리
+  keywords:
+    - "AI"
+    - "LMS"
+    
+ 
+  # 공고게시일 기준 조회 기간
+  lookback_days: 20   
+  # 키워드별 최대 조회 페이지 수
+  max_pages: 100
+  # 입찰마감일이 지난 공고는 제외합니다.
+  active_only: true
+  debug_response: true
+
+  # 업무구분별 오퍼레이션입니다. 필요 없는 업무는 enabled: false로 바꾸세요.
+  work_types:
+    - name: "용역"
+      operation: "getBidPblancListInfoServc"
+      enabled: true
+    - name: "물품"
+      operation: "getBidPblancListInfoThng"
+      enabled: false
+    - name: "공사"
+      operation: "getBidPblancListInfoCnstwk"
+      enabled: false
+    - name: "외자"
+      operation: "getBidPblancListInfoFrgcpt"
+      enabled: false
+
+  params:
+    # 한 페이지당 조회 건수
+    numOfRows: 100
+    pageNo: 1
+    type: "json"
+
+    # 1: 공고게시일 기준 조회로 사용합니다.
+    inqryDiv: "1"
+
+    # 비워두면 lookback_days 기준으로 자동 계산합니다.
+    # 직접 고정하고 싶으면 예: "202607010000"
+    inqryBgnDt: ""
+    inqryEndDt: ""
+
+  # API 검색 후 한 번 더 로컬에서 포함/제외 키워드를 검사합니다.
+  # 비워두면 keywords 기준으로만 API 검색합니다.
+  include_keywords: []
+  exclude_keywords: []
+
+state:
+  seen_file: "seen_bid_ids.json"
+  latest_file: "latest_bids.json"
