@@ -158,6 +158,27 @@ def _date_part(value: str) -> date | None:
         return None
 
 
+def _datetime_value(value: str) -> datetime | None:
+    """나라장터 날짜/시간 문자열을 datetime으로 변환합니다."""
+    value = _normalize_date(value)
+    if not value:
+        return None
+
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
 def _format_amount(value: str) -> str:
     value = (value or "").strip()
     if not value:
@@ -324,6 +345,16 @@ def _convert_item_to_notice(
         )
     )
     opening_date = _normalize_date(_first_value(item, ["opengDt", "openDt", "개찰일시"]))
+
+    bid_begin_date = _normalize_date(
+        _first_value(item, ["bidBeginDt", "bidBeginDate", "입찰개시일시"])
+    )
+    bid_begin_dt = _datetime_value(bid_begin_date)
+
+    # 입찰개시일시가 API 실행일보다 이전 날짜이면 제외합니다.
+    # 예: 오늘이 2026-07-29이고 bidBeginDt가 2026-07-28이면 제외
+    if bid_begin_dt is not None and bid_begin_dt.date() < date.today():
+        return None
 
     keep_unknown_deadline = bool(gcfg.get("keep_unknown_deadline", True))
     if active_only and not _is_active_notice(close_date, keep_unknown_deadline=keep_unknown_deadline):
