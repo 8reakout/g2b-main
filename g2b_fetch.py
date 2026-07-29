@@ -158,6 +158,27 @@ def _date_part(value: str) -> date | None:
         return None
 
 
+def _datetime_value(value: str) -> datetime | None:
+    """나라장터 날짜/일시 문자열을 datetime으로 변환합니다."""
+    value = _normalize_date(value)
+    if not value:
+        return None
+
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
 def _format_amount(value: str) -> str:
     value = (value or "").strip()
     if not value:
@@ -191,12 +212,9 @@ def _find_matched_keyword_in_title(title: str, keywords: list[str]) -> str:
 
 
 def _is_active_notice(close_date: str, *, keep_unknown_deadline: bool = True) -> bool:
-    """종료/마감일시가 API 실행일보다 이전 날짜인 공고를 제외합니다.
+    """마감일이 지난 공고를 제외합니다.
 
-    close_date는 화면의 "종료일시" 또는 API의 bidClseDt, bidWgrnteeRcptClseDt 등
-    마감성 일시 필드에서 가져온 값입니다.
-
-    keep_unknown_deadline=True이면 종료/마감일시를 파싱할 수 없는 공고는 포함합니다.
+    keep_unknown_deadline=True이면 마감일을 파싱할 수 없는 공고는 포함합니다.
     나라장터 일부 공고는 마감일 필드가 비어 내려올 수 있어 기본값은 포함으로 둡니다.
     config.yaml에서 keep_unknown_deadline: false로 두면 마감일이 없는 공고도 제외합니다.
     """
@@ -308,10 +326,6 @@ def _convert_item_to_notice(
     registered_date = _normalize_date(_first_value(item, ["bidNtceDt", "ntceDt", "rgstDt", "등록일"]))
     # 입찰/제안 마감일시. 일부 공고는 bidClseDt가 비어 있고
     # 입찰참가자격등록마감일시 또는 공동수급협정마감일시만 내려오는 경우가 있어 보조 필드까지 확인합니다.
-    # 화면의 입찰진행정보에서 보이는 "종료일시"에 해당하는 마감성 일시입니다.
-    # Word 문서상 bidClseDt는 입찰마감일시이고, bidWgrnteeRcptClseDt는 입찰보증서접수마감일시입니다.
-    # 나라장터 공고에 따라 bidClseDt가 비어 있고 다른 종료/마감일시만 내려오는 경우가 있어
-    # 아래 후보 필드들을 순서대로 확인합니다.
     close_date = _normalize_date(
         _first_value(
             item,
@@ -319,24 +333,26 @@ def _convert_item_to_notice(
                 "bidClseDt",
                 "bidClseDate",
                 "bidNtceClseDt",
-                "bidWgrnteeRcptClseDt",
                 "clseDt",
                 "prposRcptClseDt",
                 "proposalClseDt",
-                "tpEvalApplClseDt",
-                "pqApplDocRcptDt",
-                "arsltApplDocRcptDt",
                 "cmmnSpldmdAgrmntClseDt",
                 "bidQlfctRgstDt",
-                "종료일시",
                 "마감일",
                 "입찰마감일시",
-                "입찰보증서접수마감일시",
                 "제안서마감일시",
             ],
         )
     )
     opening_date = _normalize_date(_first_value(item, ["opengDt", "openDt", "개찰일시"]))
+
+    opening_dt = _datetime_value(opening_date)
+
+    # 개찰일시(opengDt)가 API 실행일보다 이전 날짜이면 제외합니다.
+    # 예: 오늘이 2026-07-29일 때 opengDt가 2026-07-28이면 제외,
+    #     2026-07-29 또는 이후이면 포함합니다.
+    if opening_dt is not None and opening_dt.date() < date.today():
+        return None
 
     keep_unknown_deadline = bool(gcfg.get("keep_unknown_deadline", True))
     if active_only and not _is_active_notice(close_date, keep_unknown_deadline=keep_unknown_deadline):
