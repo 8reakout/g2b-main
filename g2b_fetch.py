@@ -211,6 +211,28 @@ def _find_matched_keyword_in_title(title: str, keywords: list[str]) -> str:
     return ""
 
 
+def _normalize_title_for_dedup(title: str) -> str:
+    """공고명 중복 제거용 정규화 함수입니다.
+
+    같은 공고명이 여러 페이지/조건에서 반복 수집될 경우 1건만 남기기 위해 사용합니다.
+    """
+    title = _strip_html(title or "")
+    title = re.sub(r"\s+", " ", title).strip()
+    return title.lower()
+
+
+def _notice_sort_key_for_keep(notice: Notice) -> tuple[str, str, str]:
+    """중복 공고명 중 어떤 항목을 남길지 판단하기 위한 정렬 키입니다.
+
+    등록일, 마감일, 공고번호가 더 큰 값을 우선 보존합니다.
+    """
+    return (
+        notice.registered_date or "0000-00-00",
+        notice.close_date or "0000-00-00",
+        notice.notice_id or "",
+    )
+
+
 def _is_active_notice(close_date: str, *, keep_unknown_deadline: bool = True) -> bool:
     """마감일이 지난 공고를 제외합니다.
 
@@ -520,15 +542,47 @@ def fetch_g2b_notices(config: dict[str, Any]) -> list[Notice]:
                 f"원본 {work_type_raw_item_count}건 / 키워드 매칭 {work_type_match_count}건"
             )
 
-    deduped: dict[str, Notice] = {}
+    # 1차: 공고번호 기준 중복 제거
+    deduped_by_id: dict[str, Notice] = {}
+    duplicate_id_count = 0
+
     for notice in all_notices:
-        deduped[notice.notice_id] = notice
+        if notice.notice_id in deduped_by_id:
+            duplicate_id_count += 1
+            # 같은 공고번호가 다시 들어오면 더 최신으로 보이는 항목을 남깁니다.
+            if _notice_sort_key_for_keep(notice) > _notice_sort_key_for_keep(deduped_by_id[notice.notice_id]):
+                deduped_by_id[notice.notice_id] = notice
+        else:
+            deduped_by_id[notice.notice_id] = notice
+
+    # 2차: 공고명 기준 중복 제거
+    # 같은 공고명이 여러 번 수집되면 HTML/메일에는 1건만 표시합니다.
+    deduped_by_title: dict[str, Notice] = {}
+    duplicate_title_count = 0
+
+    for notice in deduped_by_id.values():
+        title_key = _normalize_title_for_dedup(notice.title)
+
+        if not title_key:
+            continue
+
+        if title_key in deduped_by_title:
+            duplicate_title_count += 1
+            # 같은 공고명이라도 등록일/마감일이 더 최신인 항목을 남깁니다.
+            if _notice_sort_key_for_keep(notice) > _notice_sort_key_for_keep(deduped_by_title[title_key]):
+                deduped_by_title[title_key] = notice
+            continue
+
+        deduped_by_title[title_key] = notice
 
     notices = sorted(
-        deduped.values(),
+        deduped_by_title.values(),
         key=lambda n: (n.registered_date or "0000-00-00", n.title),
         reverse=True,
     )
 
+    print(f"[정보] 나라장터 공고번호 중복 제외 수: {duplicate_id_count}")
+    print(f"[정보] 나라장터 공고명 중복 제외 수: {duplicate_title_count}")
+    print(f"[정보] 나라장터 공고번호 기준 수집 수: {len(deduped_by_id)}")
     print(f"[정보] 나라장터 최종 수집 공고 수: {len(notices)}")
     return notices
